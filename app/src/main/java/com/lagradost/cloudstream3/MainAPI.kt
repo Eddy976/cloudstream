@@ -23,6 +23,10 @@ import okhttp3.Interceptor
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.absoluteValue
+import com.lagradost.cloudstream3.iptvproviders.*
+import com.lagradost.cloudstream3.animeproviders.*
+import com.lagradost.cloudstream3.movieproviders.*
+
 
 const val USER_AGENT =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -40,7 +44,7 @@ object APIHolder {
     private const val defProvider = 0
 
     // ConcurrentModificationException is possible!!!
-    val allProviders = threadSafeListOf<MainAPI>()
+    val allProviders = threadSafeListOf<MainAPI>(WiflixProvider(),PickTV(),MacIPTVProvider("fr"),MacIPTVProvider("en"),MacIPTVProvider("ar"),FrenchStreamProvider(),AnimeSamaProvider())
 
     fun initAll() {
         for (api in allProviders) {

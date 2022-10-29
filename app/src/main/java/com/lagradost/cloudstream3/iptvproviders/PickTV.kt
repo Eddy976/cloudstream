@@ -97,7 +97,7 @@ class PickTV : MainAPI() {
         var posterurlRec: String?
         var flag = ""
         val reponse = app.get(urlmain).text
-        var arraymediaPlaylist = tryParseJson<ArrayList<mediaData>>(reponse)!!
+        val arraymediaPlaylist = tryParseJson<ArrayList<mediaData>>(reponse)!!
         for (media in arraymediaPlaylist) {
             if (url == media.url) {
                 link = media.url
@@ -253,7 +253,25 @@ class PickTV : MainAPI() {
         originloadlink = data
         var isM3u = false
         var link: String = data
+        var invokeHeader = mapOf<String, String>()
         when (true) {
+            data.contains("/greentv/") -> {
+                isM3u = false
+                invokeHeader = mapOf(
+                    "Accept" to "*/*",
+                    "Accept-Language" to "en_US",
+                    //"User-Agent" to "f0dcVFZhbxFZRUk",
+                    "Range" to "bytes=0-"
+                )
+
+            }
+            data.contains("vavoo_auth") -> {
+                invokeHeader = mapOf(
+                    "User-Agent" to "VAVOO/2.6 (Linux; Android 7.1.2; SM-G988N Build/NRD90M) Kodi_Fork_VAVOO/1.0 Android/7.1.2 Sys_CPU/armv7l App_Bitness/32 Version/2.6",
+                    "Accept" to "*/*",
+                    "Accept-Charset" to "UTF-8,*;q=0.8"
+                )
+            }
             data.contains("dreamsat.ddns") -> {
                 val headers1 = mapOf(
                     "User-Agent" to "REDLINECLIENT_DREAMSAT_650HD_PRO_RICHTV_V02",
@@ -286,7 +304,9 @@ class PickTV : MainAPI() {
                 "${rgxGetUrlRef.find(link)?.groupValues?.get(0).toString()}/",
                 Qualities.Unknown.value,
                 isM3u8 = isM3u,
-            )
+                headers = invokeHeader,
+
+                )
         )
         return true
     }

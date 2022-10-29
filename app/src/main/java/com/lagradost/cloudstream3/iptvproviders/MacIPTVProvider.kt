@@ -25,6 +25,10 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
     private var key: String? = ""
 
 
+    private fun detectNewAccount(): Boolean {
+        return oldAthMac != loginMac || oldAthUrl != overrideUrl
+    }
+
     private fun accountInfoNotGood(url: String, mac: String?): Boolean {
         return url.uppercase().trim() == "NONE" || url.isBlank() || mac?.uppercase()
             ?.trim() == "NONE" || mac.isNullOrBlank()
@@ -48,18 +52,19 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
         key = keyJson.js?.token
     }
 
+
     init {
-        mainUrl = overrideUrl.toString()
         name = (companionName ?: name) + " |${lang.uppercase()}|"
-        if (accountInfoNotGood(mainUrl, loginMac)) {
-            mainUrl = defaultmainUrl
-            name = defaultname
-        }
     }
 
     private suspend fun getAuthHeader() {
+        oldAthMac = loginMac
+        oldAthUrl = overrideUrl
+        mainUrl = overrideUrl.toString()
         headerMac = when (true) {
             accountInfoNotGood(mainUrl, loginMac) -> {
+                mainUrl = defaultmainUrl
+                name = defaultname
                 if (!firstInitDone) {
                     getkey(defaulmac_adresse)
                     firstInitDone = true
@@ -72,6 +77,7 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
                 )
             }
             else -> {
+                name = (companionName ?: name) + " |${lang.uppercase()}|"
                 if (!firstInitDone) {
                     getkey(loginMac.toString())
                     firstInitDone = true
@@ -425,10 +431,10 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
 
     private var codeCountry = lang
 
-
     val rgxcodeCountry = findKeyWord(codeCountry)
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        if (!firstInitDone || arraymediaPlaylist.isEmpty()) {
+        if (!firstInitDone || arraymediaPlaylist.isEmpty() || detectNewAccount()) {
+            if (detectNewAccount()) firstInitDone = false
             getAuthHeader()
 
             var reponseGetInfo: NiceResponse? = null
@@ -467,9 +473,7 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
 
             return HomePageResponse(
                 HomeResponse(
-                    responseGetGenretoJSON,
                     AllchannelstoJSON,
-                    expiration!!,
                 ).getHomePageListsInit(this), false
             )
         } else {
@@ -490,9 +494,7 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
 
 
     private data class HomeResponse(
-        val genres: ArrayList<Js_category> = ArrayList(),
         val channels: ArrayList<Data> = ArrayList(),
-        val expiration: String = "Undefined",
     ) {
         fun String.isContainsTargetCountry(provider: MacIPTVProvider): Boolean {
             val getLang = provider.lang.uppercase()
@@ -529,8 +531,8 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
             val arrayHomepage = mutableListOf<HomePageList>()
             val rgxcodeCountry = provider.rgxcodeCountry
             var firstCat = true
-            if (genres.isNotEmpty() && channels.isNotEmpty()) {
-                genres.forEach { js ->
+            if (responseGetGenretoJSON.isNotEmpty() && channels.isNotEmpty()) {
+                responseGetGenretoJSON.forEach { js ->
                     val idGenre = js.id
                     val categoryTitle = js.title.toString()
                     val arraychannel = ArrayList<Channel>()
@@ -608,11 +610,12 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
             val arrayHomepage = mutableListOf<HomePageList>()
             val rgxcodeCountry = provider.rgxcodeCountry
             var firstCat = true
+            val mychannels = ArrayList(provider.arraymediaPlaylist)
             if (responseGetGenretoJSON.isNotEmpty() && provider.arraymediaPlaylist.isNotEmpty()) {
-
-                genres.forEach { js ->
+                responseGetGenretoJSON.forEach { js ->
                     val idGenre = js.id.toString()
                     val categoryTitle = js.title.toString()
+
                     /***************************************** */
                     val flag: String
                     if (categoryTitle.uppercase()
@@ -630,7 +633,7 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
                             "$flag ${cleanTitle(categoryTitle).replace(rgxcodeCountry, "").trim()}"
                         }
                         arrayHomepage.add(
-                            provider.arraymediaPlaylist.toHomePageList(nameGenre, provider, idGenre)
+                            mychannels.toHomePageList(nameGenre, provider, idGenre)
                         )
                     }
                 }
@@ -645,6 +648,8 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
         var companionName: String? = null
         var loginMac: String? = null
         var overrideUrl: String? = null
+        private var oldAthMac: String? = null
+        private var oldAthUrl: String? = null
         private var headerMac = mutableMapOf<String, String>()
         var expiration: String? = null
         var responseGetGenretoJSON = ArrayList<Js_category>() // all genres from the provider
@@ -694,14 +699,17 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
             )
         }
 
-        fun List<Channel>.toSearchResponseHomePage(
+        fun ArrayList<Channel>.toSearchResponseHomePage(
             provider: MacIPTVProvider, GenreId: String
         ): List<SearchResponse> {
             val groupChannel = ArrayList<String>()
             var b_new: String
             var newgroupChannel: Boolean
             val rgxcodeCountry = provider.rgxcodeCountry
-            val home = this.mapNotNull { media ->
+            val home = ArrayList<SearchResponse>()
+            val itr = this.iterator()
+            while (itr.hasNext()) {
+                val media = itr.next()
                 val b = cleanTitle(media.title).replace(rgxcodeCountry, "").trim()
                 b_new = b.take(6)
                 newgroupChannel = true
@@ -714,23 +722,29 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
                 if (newgroupChannel && media.tv_genre_id == GenreId) {
                     groupChannel.add(b_new)
                     val groupName = cleanTitle(media.title).replace(rgxcodeCountry, "").trim()
-                    LiveSearchResponse(
-                        groupName,
-                        "${provider.mainUrl}${media.toStringCode()}",
-                        provider.name,
-                        TvType.Live,
-                        media.url_image,
+                    itr.remove()
+                    home.add(
+                        LiveSearchResponse(
+                            groupName,
+                            "${provider.mainUrl}${media.toStringCode()}",
+                            provider.name,
+                            TvType.Live,
+                            media.url_image,
+                        )
                     )
 
 
-                } else {
-                    null
                 }
             }
+
             return home
         }
 
-        fun List<Channel>.toHomePageList(name: String, provider: MacIPTVProvider, GenreId: String) =
+        fun ArrayList<Channel>.toHomePageList(
+            name: String,
+            provider: MacIPTVProvider,
+            GenreId: String
+        ) =
             HomePageList(
                 name, this.toSearchResponseHomePage(provider, GenreId),
                 isHorizontalImages = true
