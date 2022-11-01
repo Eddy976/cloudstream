@@ -56,7 +56,7 @@ class NekosamaProvider : MainAPI() {
 
         if (query == null) {
             // No shorting so return the first title
-            var title = this.title
+            val title = this.title
 
             return title
         } else {
@@ -330,7 +330,7 @@ class NekosamaProvider : MainAPI() {
         val type = select("div.info > p.year").text()
         val title = select("div.info > a.title > div.limit").text()
         val link = fixUrl(select("div.cover > a").attr("href"))
-        if (type.contains("Film")) {
+        if (type.uppercase().contains("FILM")) {
             return newMovieSearchResponse(
                 title,
                 link,
@@ -338,6 +338,7 @@ class NekosamaProvider : MainAPI() {
                 false,
             ) {
                 this.posterUrl = posterUrl
+
             }
 
         } else  // an Anime
@@ -349,6 +350,11 @@ class NekosamaProvider : MainAPI() {
                 false,
             ) {
                 this.posterUrl = posterUrl
+                addDubStatus(
+                    isDub = link.contains("-vf"),
+                    episodes = Regex("""(\d*) Eps""").find(type)?.groupValues?.get(1)
+                        ?.toIntOrNull()
+                )
             }
         }
     }
@@ -368,17 +374,13 @@ class NekosamaProvider : MainAPI() {
 
     private fun LastEpisodeData.tomainHome(): SearchResponse {
 
-        var posterUrl = this.url_image?.replace("""\""", "")
+        val posterUrl = this.url_image?.replace("""\""", "")
         val link = this.anime_url?.replace("""\""", "")?.let { fixUrl(it) }
             ?: throw error("Error parsing")
         val title = this.title ?: throw error("Error parsing")
         val type = this.episode ?: ""
-        var lang = this.lang
-        val dubStatus = if (lang?.contains("vf") == true) {
-            DubStatus.Dubbed
-        } else {
-            DubStatus.Subbed
-        }
+        val lang = this.lang
+
 
         if (type.contains("Ep")) {
             return newAnimeSearchResponse(
@@ -388,8 +390,11 @@ class NekosamaProvider : MainAPI() {
                 false,
             ) {
                 this.posterUrl = posterUrl
-                this.dubStatus = EnumSet.of(dubStatus)
-
+                addDubStatus(
+                    isDub = lang?.contains("vf")==true,
+                    episodes = Regex("""Ep[\.][\s]+(\d*)""").find(type)?.groupValues?.get(1)
+                        ?.toIntOrNull()
+                )
             }
 
         } else  // a movie
@@ -401,8 +406,11 @@ class NekosamaProvider : MainAPI() {
                 false,
             ) {
                 this.posterUrl = posterUrl
-                this.dubStatus = EnumSet.of(dubStatus)
-            }
+                addDubStatus(
+                    isDub = lang?.contains("vf")==true,
+                    episodes = Regex("""(\d*) Eps""").find(type)?.groupValues?.get(1)
+                        ?.toIntOrNull()
+                )            }
         }
     }
 

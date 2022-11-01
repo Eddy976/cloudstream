@@ -44,7 +44,7 @@ object APIHolder {
     private const val defProvider = 0
 
     // ConcurrentModificationException is possible!!!
-    val allProviders = threadSafeListOf<MainAPI>(WiflixProvider(),PickTV(),MacIPTVProvider("fr"),MacIPTVProvider("en"),MacIPTVProvider("ar"),FrenchStreamProvider(),AnimeSamaProvider())
+    val allProviders = threadSafeListOf<MainAPI>(VostfreeProvider(),NekosamaProvider(),OtakuFRProvider(),WiflixProvider(),PickTV(),MacIPTVProvider("fr"),MacIPTVProvider("en"),MacIPTVProvider("ar"),FrenchStreamProvider(),AnimeSamaProvider())
 
     fun initAll() {
         for (api in allProviders) {

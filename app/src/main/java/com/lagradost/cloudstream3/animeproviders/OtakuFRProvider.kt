@@ -2,9 +2,7 @@ package com.lagradost.cloudstream3.animeproviders
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
-
 import org.jsoup.nodes.Element
-
 import java.util.*
 
 class OtakuFRProvider : MainAPI() {
@@ -43,15 +41,21 @@ class OtakuFRProvider : MainAPI() {
      * Il faut retourner soit: AnimeLoadResponse, MovieLoadResponse, TorrentLoadResponse, TvSeriesLoadResponse.
      */
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document //
+        var targetUrl = url
+        if (url.contains("*")) {
+            targetUrl =
+                app.get(url.replace("*", "")).document.select("ol.breadcrumb > li:nth-child(2) > a")
+                    .attr("href")
+        }
+        val document = app.get(targetUrl).document //
         var mediaType = TvType.Anime
         val episode =
             document.select("div.list-episodes > a")
         val poster =
             document.select("article.my-3 > div.card-body > div.row >div.text-center> figure.m-0 > img")
                 .attr("src")
-        var title = document.select("div.list > div.title").text() //
-        var dubstatus = if (title.contains("VF")) {
+        val title = document.select("div.list > div.title").text() //
+        val dubstatus = if (title.contains("VF")) {
             DubStatus.Dubbed
         } else {
             DubStatus.Subbed
@@ -63,9 +67,8 @@ class OtakuFRProvider : MainAPI() {
         val episodes = episode.map { infoEpisode ->
             val remove = infoEpisode.select("span").text().toString()
             val title = infoEpisode.text().replace(remove, "")
-            val textEpisode =
-                Regex(""".* (\d*) [VvfF]{1,1}""")
-            val episodeNum = textEpisode.find(title)?.groupValues?.get(1)?.toInt()
+            val episodeNum =
+                Regex(""".* (\d*) [VvfF]{1,1}""").find(title)?.groupValues?.get(1)?.toIntOrNull()
             link_video = infoEpisode.attr("href")
             val link_poster = poster
             dataUrl = link_video
@@ -79,23 +82,24 @@ class OtakuFRProvider : MainAPI() {
 
 
         }
-        var infotext = document.selectFirst("ul.list-unstyled")?.text()
+        val infotext = document.selectFirst("ul.list-unstyled")?.text()
         val infosListRegex = Regex("""Type\: ([fF]ilm)""")
         val infosList = infotext?.let { infosListRegex.find(it)?.groupValues?.get(1) }
         val isinfosList = !infosList.isNullOrBlank()
         if (isinfosList) {
-            if (infosList!!.contains("ilm")) mediaType = TvType.AnimeMovie
+            if (infosList!!.uppercase().contains("FILM")) mediaType = TvType.AnimeMovie
         }
 
-        val description = document.selectFirst("div.synop")?.text()?.split("Autre Nom")?.get(0).toString()
+        val description =
+            document.selectFirst("div.synop")?.text()?.split("Autre Nom")?.get(0).toString()
         val textInfo = document.select("ul.list-unstyled").text()
-        val regexYear = Regex("""Sortie initiale[\:] (\d*)""")
-        val year = regexYear.find(textInfo)?.groupValues?.get(1)?.toInt()
+        val year = Regex("""Sortie initiale[\:] (\d*)""").find(textInfo)?.groupValues?.get(1)
+            ?.toIntOrNull()
 
         if (mediaType == TvType.AnimeMovie) {
             return newMovieLoadResponse(
                 title,
-                url,
+                targetUrl,
                 mediaType,
                 dataUrl
             ) { // retourne les informations du film
@@ -107,7 +111,7 @@ class OtakuFRProvider : MainAPI() {
         {
             return newAnimeLoadResponse(
                 title,
-                url,
+                targetUrl,
                 mediaType,
             ) {
                 this.posterUrl = poster
@@ -136,19 +140,17 @@ class OtakuFRProvider : MainAPI() {
         val headers = mapOf(
             "X-Requested-With" to "XMLHttpRequest"
         )
-        var regexurlEmbed = Regex("""data-url='(.*)' d""")
         allLinkstoembed.apmap { player ->
-            var link = fixUrl(player.select("iframe").attr("src"))
-            var playerUrl = fixUrl(
-                regexurlEmbed.find(
+            val playerUrl = fixUrl(
+                Regex("""data-url='(.*)' d""").find(
                     app.get(
-                        link,
+                        fixUrl(player.select("iframe").attr("src")),
                         headers = headers
                     ).text
                 )?.groupValues?.get(1).toString()
             )
 
-            if (!playerUrl.isNullOrBlank())
+            if (!playerUrl.isBlank())
                 loadExtractor(
                     httpsify(playerUrl),
                     playerUrl,
@@ -174,10 +176,10 @@ class OtakuFRProvider : MainAPI() {
 
     private fun Element.toSearchResponse(): SearchResponse {
         val figure = select("div >div >figure")
-        var posterUrl = figure.select(" a > img").attr("src")
+        val posterUrl = figure.select(" a > img").attr("src")
         val title = select(" div >div > div > a").text()
         val link = figure.select("a").attr("href")
-        var dubstatus = if (title.contains("VF")) {
+        val dubstatus = if (title.contains("VF")) {
             EnumSet.of(DubStatus.Dubbed)
         } else {
             EnumSet.of(DubStatus.Subbed)
@@ -195,37 +197,33 @@ class OtakuFRProvider : MainAPI() {
 
     }
 
-    private suspend fun Element.tomainHome(): SearchResponse {
+    private fun Element.tomainHome(): SearchResponse {
         val figure = select("div >figure")
-        var posterUrl = figure.select("a > img").attr("src")
+        val posterUrl = figure.select("a > img").attr("src")
         val title = select(" div > a").text()
         val url = select(" div > a").attr("href")
-        val document = app.get(url).document
-        val link = document.select("ol.breadcrumb > li:nth-child(2) > a").attr("href")
-        var dubstatus = if (title.contains("VF")) {
-            EnumSet.of(DubStatus.Dubbed)
-        } else {
-            EnumSet.of(DubStatus.Subbed)
-        }
-
         return newAnimeSearchResponse(
             title,
-            link,
+            url + "*",
             TvType.Anime,
             false,
         ) {
             this.posterUrl = posterUrl
-            this.dubStatus = dubstatus
+            addDubStatus(
+                isDub = title.contains("VF"),
+                episodes = Regex(""".* (\d*) [VvfF]{1,1}""").find(title)?.groupValues?.get(1)
+                    ?.toIntOrNull()
+            )
         }
 
     }
 
     private fun Element.toTopTen(): SearchResponse {
         val figure = select("figure")
-        var posterUrl = figure.select("img").attr("src")
+        val posterUrl = figure.select("img").attr("src")
         val title = select("div.titles").text()
         val link = this.attr("href")
-        var dubstatus = if (title.contains("VF")) {
+        val dubstatus = if (title.contains("VF")) {
             EnumSet.of(DubStatus.Dubbed)
         } else {
             EnumSet.of(DubStatus.Subbed)
@@ -244,8 +242,8 @@ class OtakuFRProvider : MainAPI() {
     }
 
     override val mainPage = mainPageOf(
-        Pair("$mainUrl", "Top 10 hebdomadaire"),
         Pair("$mainUrl/page/", "Nouveaux épisodes"),
+        Pair(mainUrl, "Top 10 hebdomadaire"),
         Pair("$mainUrl/en-cours/page/", "Animes en cours"),
         Pair("$mainUrl/termine/page/", "Animes terminés"),
         Pair("$mainUrl/film/page/", "Films")
@@ -253,15 +251,15 @@ class OtakuFRProvider : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val categoryName = request.name
-        var url = request.data + page
+        val url = request.data + page
         var cssSelector = ""
         if (categoryName.contains("Top") && page <= 1) {
             cssSelector = "div.block-most-watched"
         }
         val document = app.get(url).document
 
-        val home = when (!categoryName.isNullOrBlank()) {
-            request.name.contains("Animes"), request.name.contains("Films") -> document.select("div.list > >article")
+        val home = when (!categoryName.isBlank()) {
+            categoryName.contains("Animes"), categoryName.contains("Films") -> document.select("div.list > >article")
                 .mapNotNull { article -> article.toSearchResponse() }
             categoryName.contains("Top") -> document.select(cssSelector)[1].select("div.list-group > a.list-group-item")
                 .mapNotNull { item -> item.toTopTen() }
@@ -272,6 +270,4 @@ class OtakuFRProvider : MainAPI() {
 
         return newHomePageResponse(categoryName, home)
     }
-
-
 }

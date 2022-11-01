@@ -96,17 +96,15 @@ class PickTV : MainAPI() {
         var posterUrl = ""
         var posterurlRec: String?
         var flag = ""
-        val reponse = app.get(urlmain).text
-        val arraymediaPlaylist = tryParseJson<ArrayList<mediaData>>(reponse)!!
+        val arraymediaPlaylist = tryParseJson<ArrayList<mediaData>>(app.get(urlmain).text)!!
         for (media in arraymediaPlaylist) {
             if (url == media.url) {
                 link = media.url
-                originloadlink = link
                 title = media.title
                 flag = getFlag(media.lang.toString())
                 val a = rgxSelectFirstWord.find(cleanTitle(title))!!.groupValues[0]
                 posterUrl =
-                    if (media?.url_groupPoster?.isBlank() == false && media.url_image?.isBlank() == true) {
+                    if (media.url_groupPoster?.isBlank() == false && media.url_image?.isBlank() == true) {
                         media.url_groupPoster
                     } else {
                         media.url_image
@@ -124,7 +122,7 @@ class PickTV : MainAPI() {
                             .replace("https://", "").take(8)
                         val uppername = channelname.uppercase()
                         val quality = getQualityFromString(
-                            when (!channelname.isNullOrBlank()) {
+                            when (!channelname.isBlank()) {
                                 uppername.contains(findCountryId("UHD")) -> {
                                     "UHD"
                                 }
@@ -148,7 +146,7 @@ class PickTV : MainAPI() {
                         )
 
                         posterurlRec =
-                            if (media?.url_groupPoster?.isBlank() == false && channel.url_image?.isBlank() == true) {
+                            if (media.url_groupPoster?.isBlank() == false && channel.url_image?.isBlank() == true) {
                                 media.url_groupPoster
                             } else {
                                 channel.url_image
@@ -174,49 +172,57 @@ class PickTV : MainAPI() {
         val nameURLserver =
             "\uD83D\uDCF6" + link.replace("http://", "").replace("https://", "").take(8)
 
-        if (allresultshome.size >= 1) {
-            val recommendation = allresultshome.sortBynameNumber()
-            return LiveStreamLoadResponse(
-                name = "$title $flag $nameURLserver",
-                url = link,
-                apiName = this.name,
-                dataUrl = link,
-                posterUrl = posterUrl,
-                recommendations = recommendation
-            )
+        val recommendation = if (allresultshome.isNotEmpty()) {
+            allresultshome.sortBynameNumber()
         } else {
-            return LiveStreamLoadResponse(
-                name = "$title $flag $nameURLserver",
-                url = link,
-                apiName = this.name,
-                dataUrl = link,
-                posterUrl = posterUrl,
-            )
+            null
         }
+        return LiveStreamLoadResponse(
+            name = "$title $flag $nameURLserver",
+            url = link,
+            apiName = this.name,
+            dataUrl = link,
+            posterUrl = posterUrl,
+            recommendations = recommendation
+        )
     }
 
-    var originloadlink: String = ""
 
     /**
      * Some providers ask for new token so we intercept the request to change the token
      * */
+    suspend fun findOriginlink(str: String): String? {
+        val reponse = app.get(urlmain).text
+        val arraymediaPlaylist = tryParseJson<ArrayList<mediaData>>(reponse)!!
+        for (media in arraymediaPlaylist) {
+            if (media.url.contains(str) && media.url.takeLast(1) == str.takeLast(1)) {
+                return media.url
+            }
+        }
+        return null
+    }
+
     override fun getVideoInterceptor(extractorLink: ExtractorLink): Interceptor {
-        val isredirectedOrTokenNeeded = originloadlink.contains("dreamsat.ddns")
         // Needs to be object instead of lambda to make it compile correctly
         return object : Interceptor {
             override fun intercept(chain: Interceptor.Chain): okhttp3.Response {
-                if (isredirectedOrTokenNeeded) {
-                    var link: String = originloadlink
+                val request = chain.request()
+                if (request.url.toString().contains("token")) {
+                    val str =
+                        request.url.toString().replace("""http[s]?\:\/\/[^\/]*""".toRegex(), "")
+                            .replace("""\?token.*""".toRegex(), "")
+                    var link: String
                     runBlocking {
+                        link = findOriginlink(str) ?: request.url.toString()
                         when (true) {
-                            originloadlink.contains("dreamsat.ddns") -> {
+                            link.contains("dreamsat.ddns") -> {
                                 val headers1 = mapOf(
                                     "User-Agent" to "REDLINECLIENT_DREAMSAT_650HD_PRO_RICHTV_V02",
                                     "Accept-Encoding" to "identity",
                                     "Connection" to "Keep-Alive",
                                 )
                                 val headerlocation = app.get(
-                                    originloadlink, headers = headers1,
+                                    link, headers = headers1,
                                     allowRedirects = false
                                 ).headers
                                 val redirectlink = headerlocation.get("location")
@@ -227,7 +233,6 @@ class PickTV : MainAPI() {
                                 }
                             }
                             else -> {
-                                link = originloadlink
                             }
                         }
                     }
@@ -250,7 +255,6 @@ class PickTV : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        originloadlink = data
         var isM3u = false
         var link: String = data
         var invokeHeader = mapOf<String, String>()
@@ -260,7 +264,6 @@ class PickTV : MainAPI() {
                 invokeHeader = mapOf(
                     "Accept" to "*/*",
                     "Accept-Language" to "en_US",
-                    //"User-Agent" to "f0dcVFZhbxFZRUk",
                     "Range" to "bytes=0-"
                 )
 
@@ -388,81 +391,77 @@ class PickTV : MainAPI() {
     val rgxSelectFirstWord = Regex("""(^[^\s]*)""")
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val arrayHomepage = arrayListOf<HomePageList>()
+        val arraymediaPlaylist = tryParseJson<ArrayList<mediaData>>(app.get(urlmain).text)!!
+        val genreMedia = ArrayList<String>()
+        var newGenre: String
+        var category: String
+        var newgenreMedia: Boolean
+        var posterUrl: String?
+        ///////////////////////
+        arraymediaPlaylist.forEach { mediaGenre ->
+            newGenre = cleanTitle(mediaGenre.genre.toString())//
 
-        if (page == 1) {
-            val reponse = app.get(urlmain).text
-            var arraymediaPlaylist = tryParseJson<ArrayList<mediaData>>(reponse)!!
-            val genreMedia = ArrayList<String>()
-            var newGenre: String
-            var category: String
-            var newgenreMedia: Boolean
-            var posterUrl: String?
-            ///////////////////////
-            val sortedarraymediaPlaylist = arraymediaPlaylist.sortByTitleNumber()
-            arraymediaPlaylist.forEach { mediaGenre ->
-                newGenre = cleanTitle(mediaGenre.genre.toString())//
-
-                newgenreMedia = true
-                for (nameGenre in genreMedia) {
-                    if (nameGenre.contains(newGenre)) {
-                        newgenreMedia = false
-                        break
-                    }
-                }
-                if (newgenreMedia
-                ) {
-                    genreMedia.add(newGenre)
-                    category = newGenre
-                    val groupMedia = ArrayList<String>()
-                    var b_new: String
-                    var newgroupMedia: Boolean
-                    var mediaGenre: String
-                    val home = sortedarraymediaPlaylist.mapNotNull { media ->
-
-                        val b = cleanTitle(media.title)//
-                        b_new = rgxSelectFirstWord.find(b)!!.groupValues[0]  //b.take(takeN)
-                        newgroupMedia = true
-                        mediaGenre = cleanTitle(media.genre.toString())
-                        for (nameMedia in groupMedia) {
-                            if (nameMedia == b_new && (mediaGenre == category)) {
-                                newgroupMedia = false
-                                break
-                            }
-                        }
-                        if (newgroupMedia && (mediaGenre == category)
-                        ) {
-
-                            groupMedia.add(b_new)
-                            val groupName = b_new//"${cleanTitle(media.title)}"
-
-                            posterUrl =
-                                if (media.url_groupPoster?.isBlank() == true && media.url_image?.isBlank() == false) {
-                                    media.url_image
-                                } else {
-                                    media.url_groupPoster
-                                }
-                            LiveSearchResponse(
-                                groupName,
-                                media.url,
-                                name,
-                                TvType.Live,
-                                posterUrl,
-                            )
-                        } else {
-                            null
-                        }
-
-                    }
-                    arrayHomepage.add(
-                        HomePageList(
-                            "$category ${getGenreIcone(category)}",
-                            home,
-                            isHorizontalImages = true
-                        )
-                    )
+            newgenreMedia = true
+            for (nameGenre in genreMedia) {
+                if (nameGenre.contains(newGenre)) {
+                    newgenreMedia = false
+                    break
                 }
             }
+            if (newgenreMedia
+            ) {
+                genreMedia.add(newGenre)
+                category = newGenre
+                val groupMedia = ArrayList<String>()
+                var b_new: String
+                var newgroupMedia: Boolean
+                var mediaGenre: String
+                val home = arraymediaPlaylist.sortByTitleNumber().mapNotNull { media ->
+
+                    val b = cleanTitle(media.title)//
+                    b_new = rgxSelectFirstWord.find(b)!!.groupValues[0]  //b.take(takeN)
+                    newgroupMedia = true
+                    mediaGenre = cleanTitle(media.genre.toString())
+                    for (nameMedia in groupMedia) {
+                        if (nameMedia == b_new && (mediaGenre == category)) {
+                            newgroupMedia = false
+                            break
+                        }
+                    }
+                    if (newgroupMedia && (mediaGenre == category)
+                    ) {
+
+                        groupMedia.add(b_new)
+                        val groupName = b_new//"${cleanTitle(media.title)}"
+
+                        posterUrl =
+                            if (media.url_groupPoster?.isBlank() == true && media.url_image?.isBlank() == false) {
+                                media.url_image
+                            } else {
+                                media.url_groupPoster
+                            }
+                        LiveSearchResponse(
+                            groupName,
+                            media.url,
+                            name,
+                            TvType.Live,
+                            posterUrl,
+                        )
+                    } else {
+                        null
+                    }
+
+                }
+                arrayHomepage.add(
+                    HomePageList(
+                        "$category ${getGenreIcone(category)}",
+                        home,
+                        isHorizontalImages = true
+                    )
+                )
+            }
         }
+
         return HomePageResponse(
             arrayHomepage
         )

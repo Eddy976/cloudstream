@@ -468,7 +468,7 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
             ////////////////////////// GET ALL GENRES
             responseGetGenretoJSON = responseGetgenre!!.parsed<JsonGetGenre>().js
             ////////////////////////// GET ALL CHANNELS
-            val responseAllchannelstoJSON = responseAllchannels!!.parsed<Root>()
+            val responseAllchannelstoJSON = responseAllchannels!!.parsed<Root>() //parsedSafe
             val AllchannelstoJSON = responseAllchannelstoJSON.js!!.data.sortByTitleNumber()
 
             return HomePageResponse(
