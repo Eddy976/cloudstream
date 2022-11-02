@@ -88,6 +88,7 @@ data class ResultData(
     var syncData: Map<String, String>,
 
     val posterImage: UiImage?,
+    val posterBackgroundImage: UiImage?,
     val plotText: UiText,
     val apiName: UiText,
     val ratingText: UiText?,
@@ -169,6 +170,9 @@ fun LoadResponse.toResultData(repo: APIRepository): ResultData {
         nextAiringEpisode = nextAiringEpisode,
         posterImage = img(
             posterUrl, posterHeaders
+        ) ?: img(R.drawable.default_cover),
+        posterBackgroundImage = img(
+            backgroundPosterUrl ?: posterUrl, posterHeaders
         ) ?: img(R.drawable.default_cover),
         titleText = txt(name),
         url = url,
@@ -1972,7 +1976,7 @@ class ResultViewModel2 : ViewModel() {
     ): List<ExtractedTrailerData> =
         coroutineScope {
             var currentCount = 0
-            return@coroutineScope loadResponse.trailers.apmap { trailerData ->
+            return@coroutineScope loadResponse.trailers.amap { trailerData ->
                 try {
                     val links = arrayListOf<ExtractorLink>()
                     val subs = arrayListOf<SubtitleFile>()
