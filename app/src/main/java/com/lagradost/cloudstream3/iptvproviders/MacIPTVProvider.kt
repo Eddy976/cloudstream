@@ -136,7 +136,7 @@ class MacIPTVProvider(override var lang: String) : MainAPI() {
             searchResutls.add(
                 LiveSearchResponse(
                     media.title,
-                    media.url,
+                    media.toStringCode(),
                     name,
                     TvType.Live,
                     media.url_image,
