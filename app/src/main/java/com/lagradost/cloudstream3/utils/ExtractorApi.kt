@@ -190,6 +190,8 @@ suspend fun loadExtractor(
 val extractorApis: MutableList<ExtractorApi> = arrayListOf(
     //AllProvider(),
     //StreamExtractor(),
+    VoeExtractorA(),
+    PlayerSB(),
     SendvidExtractor(),
     Myvitop(),
     Sbspeed(),

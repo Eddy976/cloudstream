@@ -7,32 +7,35 @@ import com.lagradost.cloudstream3.syncproviders.AuthAPI
 import com.lagradost.cloudstream3.syncproviders.InAppAuthAPI
 import com.lagradost.cloudstream3.syncproviders.InAppAuthAPIManager
 
-class MacIptvAPI(index: Int) : InAppAuthAPIManager(index) {
-    override val name = "Iptvbox"
-    override val idPrefix = "iptvbox"
+class TagsMacIptvAPI(index: Int) : InAppAuthAPIManager(index) {
+    override val name = "Tags"
+    override val idPrefix = "tagsiptvbox"
     override val icon = R.drawable.ic_baseline_extension_24
-    override val requiresUsername = true
-    override val requiresPassword = true
+    override val requiresUsername = false
+    override val requiresPassword = false
     override val requiresServer = true
     override val createAccountUrl = ""
 
     companion object {
-        const val IPTVBOX_USER_KEY: String = "iptvbox_user"
+        const val IPTVBOX_USER_KEY1: String = "tagsiptvbox_user"
     }
 
     override fun getLatestLoginData(): InAppAuthAPI.LoginData? {
-        return getKey(accountId, IPTVBOX_USER_KEY)
+        return getKey(accountId, IPTVBOX_USER_KEY1)
     }
 
     override fun loginInfo(): AuthAPI.LoginInfo? {
         val data = getLatestLoginData() ?: return null
-        return AuthAPI.LoginInfo(name = data.username ?: data.server, accountIndex = accountIndex)
+        return AuthAPI.LoginInfo(
+            name = data.server?:"MyTags",
+            accountIndex = accountIndex
+        )
     }
 
     override suspend fun login(data: InAppAuthAPI.LoginData): Boolean {
-        if (data.server.isNullOrBlank() || !data.password?.contains("""(([0-9A-Za-z]{2}[:-]){5}[0-9A-Za-z]{2})""".toRegex())!!) return false // we require a server and a mac address
+        if (data.server.isNullOrBlank()) return false // we require a tags
         switchToNewAccount()
-        setKey(accountId, IPTVBOX_USER_KEY, data)
+        setKey(accountId, IPTVBOX_USER_KEY1, data)
         registerAccount()
         initialize()
         inAppAuths
@@ -47,22 +50,10 @@ class MacIptvAPI(index: Int) : InAppAuthAPIManager(index) {
 
     private fun initializeData() {
         val data = getLatestLoginData() ?: run {
-            MacIPTVProvider.overrideUrl = null
-            MacIPTVProvider.loginMac = null
-            MacIPTVProvider.companionName = null
-            switchToNewAccount()
-            setKey(
-                accountId,
-                IPTVBOX_USER_KEY,
-                InAppAuthAPI.LoginData("Default Account", null, "none")
-            )
-            registerAccount()
-            inAppAuths
+            MacIPTVProvider.tags = null
             return
         }
-        MacIPTVProvider.overrideUrl = data.server?.removeSuffix("/")
-        MacIPTVProvider.loginMac = data.password ?: ""
-        MacIPTVProvider.companionName = data.username
+        MacIPTVProvider.tags = data.server.toString()
     }
 
     override suspend fun initialize() {

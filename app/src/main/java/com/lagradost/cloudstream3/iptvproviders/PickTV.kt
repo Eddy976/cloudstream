@@ -8,10 +8,9 @@ import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import kotlinx.coroutines.runBlocking
 import me.xdrop.fuzzywuzzy.FuzzySearch
 import okhttp3.Interceptor
-import kotlin.collections.ArrayList
 
 class PickTV : MainAPI() {
-    override var mainUrl = "http"
+    override var mainUrl = "https://github.com"
     val urlmain =
         "https://raw.githubusercontent.com/Eddy976/cloudstream-extensions-eddy/ressources/trickylist.json"
     override var name = "MyPickTV"
@@ -98,7 +97,7 @@ class PickTV : MainAPI() {
         var flag = ""
         val arraymediaPlaylist = tryParseJson<ArrayList<mediaData>>(app.get(urlmain).text)!!
         for (media in arraymediaPlaylist) {
-            if (url == media.url) {
+            if (url.replace(mainUrl, "") == media.url) {
                 link = media.url
                 title = media.title
                 flag = getFlag(media.lang.toString())
@@ -257,24 +256,28 @@ class PickTV : MainAPI() {
     ): Boolean {
         var isM3u = false
         var link: String = data
-        var invokeHeader = mapOf<String, String>()
+        val invokeHeader = mapOf<String, String>(
+            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0",
+            "Accept" to "**",
+            "Accept-Language" to "en-US,en;q=0.5",
+            "Accept-Encoding" to "gzip, deflate, br",
+            "Referer" to "https://www.canalplus.com/",
+            "Origin" to "https://www.canalplus.com",
+            "Connection" to "keep-alive",
+            "Sec-Fetch-Dest" to "empty",
+            "Sec-Fetch-Mode" to "cors",
+            "Sec-Fetch-Site" to "cross-site",
+            "Pragma" to "no-cache",
+            "Cache-Control" to "no-cache",
+            "TE" to "trailers",
+        )
+        var refer: String = ""
         when (true) {
-            data.contains("/greentv/") -> {
-                isM3u = false
-                invokeHeader = mapOf(
-                    "Accept" to "*/*",
-                    "Accept-Language" to "en_US",
-                    "Range" to "bytes=0-"
-                )
+            (data.contains("m3u") && data.contains("webudi.openhd")) -> {
+                isM3u = true
+                refer = "https://streamservicehd.click/"
+            }
 
-            }
-            data.contains("vavoo_auth") -> {
-                invokeHeader = mapOf(
-                    "User-Agent" to "VAVOO/2.6 (Linux; Android 7.1.2; SM-G988N Build/NRD90M) Kodi_Fork_VAVOO/1.0 Android/7.1.2 Sys_CPU/armv7l App_Bitness/32 Version/2.6",
-                    "Accept" to "*/*",
-                    "Accept-Charset" to "UTF-8,*;q=0.8"
-                )
-            }
             data.contains("dreamsat.ddns") -> {
                 val headers1 = mapOf(
                     "User-Agent" to "REDLINECLIENT_DREAMSAT_650HD_PRO_RICHTV_V02",
@@ -291,25 +294,39 @@ class PickTV : MainAPI() {
                 if (redirectlink != "null") {
                     link = redirectlink
                 }
+                refer = "${rgxGetUrlRef.find(link)?.groupValues?.get(0).toString()}/"
+
             }
             else -> {
                 link = data
+                refer = "${rgxGetUrlRef.find(link)?.groupValues?.get(0).toString()}/"
+
             }
         }
-
+        link =
+            "https://hls-m009.live-lv3.canalplus-cdn.net/live/disk/beinsports1-hd/dash-fhddvr/beinsports1-hd.mpd"
+       // "https://dsh-c12-live-canalplus.akamaized.net/live/disk/oi-reu-beinsports1/dash-fhddvr/oi-reu-beinsports1.mpd"
         val live = link.replace("http://", "").replace("https://", "").take(8) + " \uD83D\uDD34"
+        refer = "https://tezgoal.com/"
+        isM3u = true
+/*        M3u8Helper.generateM3u8(
+            name,
+            link ,
+            refer,
+            //headers = mapOf("Origin" to refer)
+        ).forEach(callback)*/
 
         callback.invoke(
             ExtractorLink(
                 name,
                 live,
                 link,
-                "${rgxGetUrlRef.find(link)?.groupValues?.get(0).toString()}/",
+                "https://www.canalplus.com/",
                 Qualities.Unknown.value,
                 isM3u8 = isM3u,
                 headers = invokeHeader,
 
-                )
+            )
         )
         return true
     }
@@ -442,7 +459,7 @@ class PickTV : MainAPI() {
                             }
                         LiveSearchResponse(
                             groupName,
-                            media.url,
+                            media.url + mainUrl,
                             name,
                             TvType.Live,
                             posterUrl,
