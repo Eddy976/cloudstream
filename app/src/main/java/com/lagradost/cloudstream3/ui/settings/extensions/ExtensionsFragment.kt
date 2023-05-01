@@ -1,6 +1,5 @@
 package com.lagradost.cloudstream3.ui.settings.extensions
 
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.DialogInterface
@@ -26,6 +25,7 @@ import com.lagradost.cloudstream3.ui.result.setText
 import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.isTrueTvSettings
 import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.setUpToolbar
 import com.lagradost.cloudstream3.utils.AppUtils.downloadAllPluginsDialog
+import com.lagradost.cloudstream3.utils.AppUtils.setDefaultFocus
 import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.Coroutines.main
 import com.lagradost.cloudstream3.utils.UIHelper.dismissSafe
@@ -107,7 +107,7 @@ class ExtensionsFragment : Fragment() {
                     )
                     .setPositiveButton(R.string.delete, dialogClickListener)
                     .setNegativeButton(R.string.cancel, dialogClickListener)
-                    .show()
+                    .show().setDefaultFocus()
             }
         })
 
@@ -200,7 +200,9 @@ class ExtensionsFragment : Fragment() {
                     val url = dialog.repo_url_input?.text?.toString()
                         ?.let { it1 -> RepositoryManager.parseRepoUrl(it1) }
                     if (url.isNullOrBlank()) {
-                        showToast(activity, R.string.error_invalid_data, Toast.LENGTH_SHORT)
+                        main {
+                            showToast(activity, R.string.error_invalid_data, Toast.LENGTH_SHORT)
+                        }
                     } else {
                         val fixedName = if (!name.isNullOrBlank()) name
                         else RepositoryManager.parseRepository(url)?.name ?: "No name"
