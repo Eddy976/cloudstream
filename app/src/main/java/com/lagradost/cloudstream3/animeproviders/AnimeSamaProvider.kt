@@ -631,10 +631,8 @@ class AnimeSamaProvider : MainAPI() {
 
     val findAllNumber = Regex("""([0-9]+)""")
     private fun Element.toSearchResponse(): SearchResponse? {
-        val figcaption = select("a >figcaption > span").text()
-        if (figcaption.lowercase().trim() != "scan") {
             val posterUrl = select("a > img").attr("src")
-            val title = select("a >figcaption").text().replace(figcaption, "")
+            val title = select("a >div>h1").text()
             val global_link = select("a").attr("href")
             if (global_link.contains("search.php")) {
                 return null
@@ -650,9 +648,7 @@ class AnimeSamaProvider : MainAPI() {
             ) {
                 this.posterUrl = posterUrl
             }
-        } else {
-            return null
-        }
+
     }
 
     private fun Element.toSearchResponseNewEp(): SearchResponse? {
@@ -735,25 +731,23 @@ class AnimeSamaProvider : MainAPI() {
 
         if (page <= 1) {
             val document = app.get(url).document
-            cssSelector = "div.container-fluid>div#sectionsAccueil"
-            cssSelectorN = "div#$idDay>div#sectionsAccueil > figure"
+            cssSelector = "div.scrollBarStyled"
+            cssSelectorN = "div#$idDay>div.scrollBarStyled > div"
             home = when (!categoryName.isBlank()) {
                 categoryName.contains("NOUVEAUX") -> {
-                    categoryName =
-                        document.select("div#$idDay.fadeJours > div.col-12>p.titreJours").text()
                     document.select(cssSelectorN)
                         .mapNotNull { article -> article.toSearchResponseNewEp() }
                 }
                 categoryName.contains("ajoutés") -> {
-                    document.select(cssSelector)[2].select("figure")
+                    document.select(cssSelector)[8].select("div.shrink-0")
                         .mapNotNull { article -> article.toSearchResponse() }
                 }
                 categoryName.contains("rater") -> {
-                    document.select(cssSelector)[1].select("figure")
+                    document.select(cssSelector)[10].select("div.shrink-0")
                         .mapNotNull { article -> article.toSearchResponse() }
                 }
                 else -> {
-                    document.select(cssSelector)[0].select("figure")
+                    document.select(cssSelector)[9].select("div.shrink-0")
                         .mapNotNull { article -> article.toSearchResponse() }
                 }
             }

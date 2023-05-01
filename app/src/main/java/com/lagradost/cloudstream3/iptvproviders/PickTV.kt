@@ -305,7 +305,7 @@ class PickTV : MainAPI() {
         }
         link =
             "https://hls-m009.live-lv3.canalplus-cdn.net/live/disk/beinsports1-hd/dash-fhddvr/beinsports1-hd.mpd"
-       // "https://dsh-c12-live-canalplus.akamaized.net/live/disk/oi-reu-beinsports1/dash-fhddvr/oi-reu-beinsports1.mpd"
+       // "https://dsh-c12-live-canalplus.akamaized.net/live/disk/oi-reu-beinsports1/C/oi-reu-beinsports1.mpd"
         val live = link.replace("http://", "").replace("https://", "").take(8) + " \uD83D\uDD34"
         refer = "https://tezgoal.com/"
         isM3u = true

@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.extractorApis
+import kotlinx.coroutines.runBlocking
 import org.jsoup.nodes.Element
 
 
@@ -23,13 +24,17 @@ class FrenchStreamProvider : MainAPI() {
             val newMainUrl = document.select("link[rel*=\"canonical\"]").attr("href")
             if (!newMainUrl.isNullOrBlank() && newMainUrl.contains("french-stream")) {
                 mainUrl = newMainUrl
+                return
             } else {
                 // if the clone feature didn't work with then get the url from a file
 
-                app.get("https://raw.githubusercontent.com/Eddy976/cloudstream-extensions-eddy/ressources/fetchwebsite.json")
-                    .parsed<ArrayList<mediaData>>().forEach {
+                val getFromGit =app.get("https://raw.githubusercontent.com/Eddy976/cloudstream-extensions-eddy/ressources/fetchwebsite.json")
+                    .parsed<ArrayList<mediaData>>()
+
+                getFromGit.forEach {
                         if (it.title.contains("french-stream", ignoreCase = true)) {
                             mainUrl = it.url
+                            return
                         }
                     }
             }
@@ -38,6 +43,7 @@ class FrenchStreamProvider : MainAPI() {
                 .parsed<ArrayList<mediaData>>().forEach {
                     if (it.title.contains("french-stream", ignoreCase = true)) {
                         mainUrl = it.url
+                        return
                     }
                 }
 
@@ -277,6 +283,12 @@ class FrenchStreamProvider : MainAPI() {
         return true
     }
 
+    private fun changeMainUrl(url: String) {
+        if (!url.contains("$mainUrl")) {
+            mainUrl =
+                Regex("""(http[s]\:\/\/{0,1}[^\/]*)""").find(url)?.groupValues?.get(0) ?: mainUrl
+        }
+    }
 
     private fun Element.toSearchResponse(): SearchResponse {
 
@@ -294,7 +306,7 @@ class FrenchStreamProvider : MainAPI() {
                 else -> null
             }
         )
-
+        changeMainUrl(link)
         if (!type.contains("eps")) {
             return MovieSearchResponse(
                 name = title,
@@ -343,7 +355,7 @@ class FrenchStreamProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        if (isNotInit) initMainUrl()
+        if (isNotInit) runBlocking { initMainUrl() }
         val url = mainUrl + request.data + page
         val document = app.get(url).document
         val movies = document.select("div#dle-content > div.short")

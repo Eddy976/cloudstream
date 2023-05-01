@@ -299,6 +299,13 @@ class WiflixProvider : MainAPI() {
         return true
     }
 
+    private fun changeMainUrl(url: String) {
+        if (!url.contains("$mainUrl")) {
+            mainUrl =
+                Regex("""(http[s]\:\/\/{0,1}[^\/]*)""").find(url)?.groupValues?.get(0) ?: mainUrl
+        }
+    }
+
     private fun Element.toSearchResponse(): SearchResponse {
 
         val posterUrl = fixUrl(select("div.img-box > img").attr("src"))
@@ -316,6 +323,7 @@ class WiflixProvider : MainAPI() {
                 else -> null
             }
         )
+        changeMainUrl(link)
         if (type.contains("film")) {
             return newAnimeSearchResponse(
                 name = title,

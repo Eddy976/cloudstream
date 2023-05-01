@@ -2,7 +2,6 @@ package com.lagradost.cloudstream3.animeproviders
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.LoadResponse.Companion.addMalId
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import org.jsoup.nodes.Element
@@ -199,7 +198,6 @@ class NekosamaProvider : MainAPI() {
         var dataUrl = ""
         var link_video = ""
         /////////////////////////////////////
-        val malId = "21"
 
         results.forEach { infoEpisode ->
             val episodeScript = infoEpisode.groupValues[1]
@@ -218,9 +216,7 @@ class NekosamaProvider : MainAPI() {
 
             val srcScriptposter =
                 Regex("""\"url_image\"\:\"([^\"]*)\"""") // remove\
-            val poster = srcScriptposter.find(episodeScript)?.groupValues?.get(1)
-            var link_poster = ""
-            if (poster != null) link_poster = poster.replace("\\", "")
+            //val poster = srcScriptposter.find(episodeScript)?.groupValues?.get(1)
             dataUrl = link_video
 
 
@@ -228,9 +224,6 @@ class NekosamaProvider : MainAPI() {
                 Episode(
                     link_video,
                     episode = episodeNum,
-                    /*    name = title,
-                        posterUrl = link_poster*/
-
                 )
             )
 
@@ -295,7 +288,7 @@ class NekosamaProvider : MainAPI() {
     ): Boolean {
         val url = data
         val document = app.get(url).document
-        val script = document.select("""[type^="text"]""")[1]
+        val script = document.select("""[type^="text"]""")[2]
         val srcAllvideolinks =
             Regex("""\'(https:\/\/[^']*)""")
 
@@ -303,7 +296,7 @@ class NekosamaProvider : MainAPI() {
 
         results.forEach { infoEpisode ->
 
-            var playerUrl = infoEpisode.groupValues[1]
+            val playerUrl = infoEpisode.groupValues[1]
 
             if (!playerUrl.isNullOrBlank())
                 loadExtractor(
