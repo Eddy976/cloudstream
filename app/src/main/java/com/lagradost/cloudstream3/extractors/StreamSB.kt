@@ -77,6 +77,14 @@ class StreamSB10 : StreamSB() {
     override var mainUrl = "https://sbplay2.xyz"
 }
 
+class StreamSB11 : StreamSB() {
+    override var mainUrl = "https://sbbrisk.com"
+}
+
+class Sblongvu : StreamSB() {
+    override var mainUrl = "https://sblongvu.com"
+}
+
 // This is a modified version of https://github.com/jmir1/aniyomi-extensions/blob/master/src/en/genoanime/src/eu/kanade/tachiyomi/animeextension/en/genoanime/extractors/StreamSBExtractor.kt
 // The following code is under the Apache License 2.0 https://github.com/jmir1/aniyomi-extensions/blob/master/LICENSE
 open class StreamSB : ExtractorApi() {
@@ -130,7 +138,7 @@ open class StreamSB : ExtractorApi() {
             it.value.replace(Regex("(embed-|/e/)"), "")
         }.first()
 //        val master = "$mainUrl/sources48/6d6144797752744a454267617c7c${bytesToHex.lowercase()}7c7c4e61755a56456f34385243727c7c73747265616d7362/6b4a33767968506e4e71374f7c7c343837323439333133333462353935333633373836643638376337633462333634663539343137373761333635313533333835333763376333393636363133393635366136323733343435323332376137633763373337343732363536313664373336327c7c504d754478413835306633797c7c73747265616d7362"
-        val master = "$mainUrl/sources48/" + bytesToHex("||$id||||streamsb".toByteArray()) + "/"
+        val master = "$mainUrl/sources16/" + bytesToHex("||$id||||streamsb".toByteArray()) + "/"
         val headers = mapOf(
             "watchsb" to "sbstream",
         )

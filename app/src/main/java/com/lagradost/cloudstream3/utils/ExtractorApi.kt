@@ -52,7 +52,7 @@ data class ExtractorLinkPlayList(
 )
 
 
-open class ExtractorLink(
+open class ExtractorLink constructor(
     open val source: String,
     open val name: String,
     override val url: String,
@@ -62,7 +62,24 @@ open class ExtractorLink(
     override val headers: Map<String, String> = mapOf(),
     /** Used for getExtractorVerifierJob() */
     open val extractorData: String? = null,
+    open val isDash: Boolean = false,
 ) : VideoDownloadManager.IDownloadableMinimum {
+    /**
+     * Old constructor without isDash, allows for backwards compatibility with extensions.
+     * Should be removed after all extensions have updated their cloudstream.jar
+     **/
+    constructor(
+        source: String,
+        name: String,
+        url: String,
+        referer: String,
+        quality: Int,
+        isM3u8: Boolean = false,
+        headers: Map<String, String> = mapOf(),
+        /** Used for getExtractorVerifierJob() */
+        extractorData: String? = null
+    ) : this(source, name, url, referer, quality, isM3u8, headers, extractorData, false)
+
     override fun toString(): String {
         return "ExtractorLink(name=$name, url=$url, referer=$referer, isM3u8=$isM3u8)"
     }
@@ -218,6 +235,8 @@ val extractorApis: MutableList<ExtractorApi> = arrayListOf(
     VideovardSX(),
     Mp4Upload(),
     StreamTape(),
+    StreamTapeNet(),
+    ShaveTape(),
 
     //mixdrop extractors
     MixDropBz(),
@@ -240,6 +259,7 @@ val extractorApis: MutableList<ExtractorApi> = arrayListOf(
     StreamSB8(),
     StreamSB9(),
     StreamSB10(),
+    StreamSB11(),
     SBfull(),
     // Streamhub(), cause Streamhub2() works
     Streamhub2(),
@@ -265,15 +285,19 @@ val extractorApis: MutableList<ExtractorApi> = arrayListOf(
     //  WatchSB(), 'cause StreamSB.kt works
     Uqload(),
     Uqload1(),
+    Uqload2(),
     Evoload(),
     Evoload1(),
     VoeExtractor(),
     UpstreamExtractor(),
 
     Tomatomatela(),
+    TomatomatelalClub(),
     Cinestart(),
     OkRu(),
     OkRuHttps(),
+    Okrulink(),
+    Sendvid(),
 
     // dood extractors
     DoodCxExtractor(),
@@ -285,6 +309,7 @@ val extractorApis: MutableList<ExtractorApi> = arrayListOf(
     DoodShExtractor(),
     DoodWatchExtractor(),
     DoodWfExtractor(),
+    DoodYtExtractor(),
 
     AsianLoad(),
 
@@ -300,6 +325,7 @@ val extractorApis: MutableList<ExtractorApi> = arrayListOf(
     Supervideo(),
     GuardareStream(),
     CineGrabber(),
+    Vanfem(),
 
     // StreamSB.kt works
     //  SBPlay(),
@@ -330,6 +356,9 @@ val extractorApis: MutableList<ExtractorApi> = arrayListOf(
     DesuDrive(),
 
     Filesim(),
+    FileMoon(),
+    FileMoonSx(),
+    Vido(),
     Linkbox(),
     Acefile(),
     SpeedoStream(),
@@ -367,6 +396,11 @@ val extractorApis: MutableList<ExtractorApi> = arrayListOf(
     VidSrcExtractor2(),
     PlayLtXyz(),
     AStreamHub(),
+
+    Cda(),
+    Dailymotion(),
+    ByteShare(),
+    Ztreamhub()
 )
 
 
